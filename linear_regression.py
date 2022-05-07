@@ -12,10 +12,13 @@ import unittest
 
 
 def mean_squared_error(y_pred: np.ndarray, y_true: np.ndarray) -> float:
+    """
+    where y_pred and y_true are vertical vector of size N or matrix with size (N, 1)
+    """
     if y_pred.shape != y_true.shape:
         raise Exception(f'y_pred shape {y_pred.shape} not equal to y_true shape {y_true.shape}')
 
-    n = max(y_pred.shape)
+    n = y_pred.shape[0]
     return np.square(y_pred - y_true).sum() / n
 
 
@@ -25,15 +28,16 @@ def linear_model_mean_squared_error_gradient(
         y: np.ndarray) -> np.ndarray:
     """
     Calculates gradient vector for linear model with form
-        y_hat = M_x * w where M_x is size (i, 1 + p) where p is number of properties
+        y_hat = M_x * w where M_x is size (i, 1 + p) where (1 + p) is the number of properties
         added 1 b/c M_x should be augmented to have all ones in the first column b/c
-        it will be used to calculate w_0
+        it will be used to calculate w_0 (the basis or intercept)
     :param m_x: ones column plus input data with size (i, 1 + p)
-    :param w: weights vector with size (p, 1)
+    :param w: weights vector with size (1 + p, 1)
     :param y: target data with size (i, 1)
     :return: a gradient vector which represents the change in MSE (mean squared error) for a change in each weight
     """
-    return (2 / m_x.shape[0]) * np.matmul(m_x.T, np.matmul(m_x, w) - y)
+    linear_combination = np.matmul(m_x, w)
+    return (2 / m_x.shape[0]) * np.matmul(m_x.T, linear_combination - y)
 
 
 def linear_model_mean_squared_error_normals(
@@ -86,9 +90,11 @@ class LinearRegression:
         finds local minima/maxima
             - many ways to "steer" parameters
         won't work if C is not differentiable
+            - augmented version of a_star can be used to find parameters
         choice of model and cost function is subjective
             - we chose a way to explain the data
             - we chose a measure of how good our explanation is
+        parameter initialization is arbitrary
     """
 
     def __init__(self, learning_rate=0.5):
@@ -100,7 +106,6 @@ class LinearRegression:
             target_data: np.ndarray,
             cost_func_gradient: Callable) -> None:
         """
-
         :param input_data: data with size (i, p)
         :param target_data: data with size (i, 1)
         :param cost_func_gradient: calculates gradient vector, obtained by taking derivative of cost function with model
@@ -110,7 +115,6 @@ class LinearRegression:
         m_x: np.ndarray = np.hstack((ones, input_data))  # size of (i, p + 1)
         self.w: np.ndarray = np.zeros((m_x.shape[1], 1))  # size of (p + 1, 1)
 
-        # 50 is picked arbitrarily
         for _ in range(10000):
             gradient = cost_func_gradient(m_x, self.w, target_data)
             self.w -= self.learning_rate * gradient  # subtract b/c we want to minimize
