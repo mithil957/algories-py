@@ -1,7 +1,11 @@
 from collections import namedtuple
 from collections import deque
+from dataclasses import dataclass
+
 import os
 import time
+
+from sudoku.sudoku_solver import Solver
 
 
 def clear() -> None:
@@ -43,76 +47,82 @@ def clear() -> None:
         - Is there a better way of deciding which cell to go to next?
 """
 
-Move = namedtuple('Move', ['row', 'col', 'value', 'other_possible_values'])
+Cell = namedtuple('Cell', ['row', 'col'])
 
 
-class SudokuSolver:
+@dataclass
+class Move:
+    cell: Cell
+    value: int
+    other_possible_values: set[int]
+
+
+BoardSolved = namedtuple('BoardSolved', [])
+Backtrack = namedtuple('Backtrack', [])
+SkipCell = namedtuple('SkipCell', [])
+
+
+class BruteSolver(Solver):
     def __init__(self, board: list[list[int]]):
         self.board = board
         self.n = len(board)
         self.cell_size = int(self.n ** .5)
+        self.moves: deque[Move] = deque()
+        self.current_cell = Cell(0, 0)
+        self.possibilities: set[int] = set()
+
+        # for visualizing
+        self.visualize = False
+        self.steps = 0
 
     def solve(self):
-        moves: deque[Move] = deque()
-        row, col = 0, 0
-        iterations = 0
-
         while True:
-            # for visualizing algo., not needed for solving
-            clear()
-            iterations += 1
-            print(f'Iterations: {iterations}')
-            print()
-            print(self.board_repr(row, col))
-            time.sleep(1 / 240)
+            match self.next_action():
+                case BoardSolved():
+                    break
 
-            # if at end, then we completed the board
-            if row == 9 and col == 0:
-                break
+                case SkipCell():
+                    self.move_forward()
 
-            # if there is value set, ignore it
-            # for handling pre-filled values of a board
-            if self.board[row][col] != 0:
-                row, col = self.move_forward(row, col)
-                continue
+                case Cell(_, _):
+                    self.make_move_on_board()
+                    self.move_forward()
+                    self.possibilities = set()
 
-            # calculate what values can go in current cell
-            remaining_values = self.calculate_remaining_values(row, col)
+                case Backtrack():
+                    self.backtrack()
 
-            # if we can make a move, make it
-            if len(remaining_values) != 0:
-                move = Move(row, col, remaining_values.pop(), remaining_values)
-                moves.append(move)
-                self.board[row][col] = move.value
-                self.move_forward(row, col)
+    def next_action(self) -> BoardSolved | SkipCell | Cell | Backtrack:
+        if self.current_cell == Cell(self.n, 0):
+            return BoardSolved()
 
-            # if we cannot make a move, backtrack
-            else:
-                cannot_make_move = True
+        if self.board[self.current_cell.row][self.current_cell.col] != 0:
+            return SkipCell()
 
-                # keep popping from stack until we can make a move
-                while cannot_make_move:
-                    iterations += 1  # for visualizing algo
+        if len(self.possibilities) != 0:
+            return self.current_cell
 
-                    last_move = moves.pop()
-                    self.board[last_move.row][last_move.col] = 0
+        self.possibilities = self.calculate_possible_values(self.current_cell)
+        if len(self.possibilities) != 0:
+            return self.current_cell
 
-                    # we can make move
-                    if len(last_move.other_possible_values) > 0:
-                        # break loop
-                        cannot_make_move = False
-                        new_move = Move(last_move.row, last_move.col,
-                                        last_move.other_possible_values.pop(), last_move.other_possible_values)
-                        moves.append(new_move)
-                        self.board[new_move.row][new_move.col] = new_move.value
-                        row, col = self.move_forward(new_move.row, new_move.col)
+        else:
+            return Backtrack()
 
-    def calculate_remaining_values(self, current_row: int, current_col: int) -> set[int]:
-        row_values = {i for i in self.board[current_row]}
-        col_values = {self.board[row][current_col] for row in range(len(self.board))}
+    def move_forward(self) -> None:
+        if self.current_cell.col + 1 < self.n:
+            self.current_cell = Cell(self.current_cell.row, self.current_cell.col + 1)
+        else:
+            self.current_cell = Cell(self.current_cell.row + 1, 0)
 
-        cell_row = (current_row // self.cell_size) * self.cell_size
-        cell_col = (current_col // self.cell_size) * self.cell_size
+        self.visualize_process()
+
+    def calculate_possible_values(self, cell: Cell) -> set[int]:
+        row_values = {i for i in self.board[cell.row]}
+        col_values = {self.board[row][cell.col] for row in range(len(self.board))}
+
+        cell_row = (cell.row // self.cell_size) * self.cell_size
+        cell_col = (cell.col // self.cell_size) * self.cell_size
 
         cell_values = {
             self.board[cell_row + dx][cell_col + dy]
@@ -124,48 +134,80 @@ class SudokuSolver:
 
         return all_values - row_values - col_values - cell_values
 
-    def move_forward(self, row, col) -> tuple[int, int]:
-        if col + 1 < self.n:
-            return row, col + 1
-        else:
-            return row + 1, 0
+    def make_move_on_board(self):
+        current_cell = self.current_cell
+        move = Move(current_cell, self.possibilities.pop(), self.possibilities)
+        self.moves.append(move)
+        self.board[current_cell.row][current_cell.col] = move.value
+
+        self.visualize_process()
+
+    def backtrack(self):
+        cannot_make_move = True
+
+        while cannot_make_move:
+            last_move = self.moves.pop()
+            self.current_cell = last_move.cell
+            self.board[last_move.cell.row][last_move.cell.col] = 0
+
+            if len(last_move.other_possible_values) > 0:
+                cannot_make_move = False
+                self.possibilities = last_move.other_possible_values
+            else:
+                self.possibilities = set()
+
+            self.visualize_process()
+
+    def visualize_process(self):
+        if not self.visualize:
+            return
+
+        clear()
+        self.steps += 1
+        print(f'Steps: {self.steps}', end='\n\n')
+        print(self.board_repr(self.current_cell))
+        time.sleep(1 / 60)
 
     # why is pretty printing a board so HARD
-    def board_repr(self, current_row, current_col):
-        board_str = [['' for _ in range(len(self.board[0]))]
-                     for _ in range(len(self.board))]
+    def board_repr(self, cell: Cell):
+        s: list[list[int | str]] = [[self.board[row_ind][col_ind]
+                                     for col_ind in range(self.n)]
+                                    for row_ind in range(self.n)]
 
-        current_cell = (current_row * self.n) + current_col
+        for row_ind in range(self.n):
+            for col_ind in range(self.n):
+                val = s[row_ind][col_ind]
+                p1 = ' ' * (self.cell_size + 2)
+                p2 = ' ' * (self.n - self.cell_size - 2)
+                s[row_ind][col_ind] = p1 + str(val) + p2
 
-        for cell_number in range(self.n ** 2):
-            row_ind = cell_number // self.n
-            col_ind = cell_number % self.n
+        bs = []
 
-            if cell_number <= current_cell:
-                pretty_cell = f'\033[1;37;46m{self.board[row_ind][col_ind]:3}\033[0;0m'
-            else:
-                pretty_cell = f'\033[1;37;40m{self.board[row_ind][col_ind]:3}\033[0;0m'
+        cell_number = (cell.row * self.n) + cell.col
+        for row_ind, row in enumerate(s):
+            str_row = ['|' for _ in range(self.cell_size)]
 
-            board_str[row_ind][col_ind] = pretty_cell
+            for col_ind, val_str in enumerate(row):
+                for ind, i in enumerate(range(0, self.n, self.cell_size)):
+                    if self.board[row_ind][col_ind] != 0:
+                        str_row[ind] += f'\033[1;37;42m{val_str[i: i + self.cell_size]:5}\033[0;0m'
+                    elif row_ind * self.n + col_ind == cell_number:
+                        str_row[ind] += f'\033[1;37;46m{val_str[i: i + self.cell_size]:5}\033[0;0m'
+                    else:
+                        str_row[ind] += f'{val_str[i: i + self.cell_size]:5}'
 
-        for row in board_str:
-            for ind, modifier in enumerate(range(0, self.n + 1, self.cell_size)):
-                # vertical divider
-                row.insert(ind + modifier, '|')
+                    str_row[ind] += '|'
 
-        s = []
-        for row in board_str:
-            row_str = ''.join([val for val in row])
-            s.append(row_str)
+            if row_ind % self.cell_size == 0:
+                bs.append(' ' * len(str_row[0]))
 
-        divider = '-' * (1 + self.cell_size + (3 * self.n))
-        for ind, modifier in enumerate(range(0, self.n + 1, self.cell_size)):
-            s.insert(ind + modifier, f'{divider}')
+            bs.extend(str_row)
+            bs.append('-' * (6 * self.n + 1))
 
-        return '\n'.join(s)
+        return '\n'.join(bs)
 
     def __repr__(self):
-        return self.board_repr(-1, -1)
+        return self.board_repr(self.current_cell)
 
 
 if __name__ == '__main__':
@@ -184,8 +226,10 @@ if __name__ == '__main__':
         [2, 0, 7, 0, 8, 3, 6, 1, 5],
     ]
 
-    solver = SudokuSolver(example_board_1)
+    solver = BruteSolver(example_board_1)
+    solver.visualize = False
     solver.solve()
+    print(solver)
 
     # ---------------------------------------------
     # 16 by 16
@@ -215,5 +259,5 @@ if __name__ == '__main__':
         for row in example_board_2_str.split('\n')[1:-1]
     ]
 
-    solver = SudokuSolver(example_board_2)
+    solver = BruteSolver(example_board_2)
     # solver.solve()

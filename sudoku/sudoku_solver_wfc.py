@@ -4,6 +4,8 @@ import os
 import time
 from collections import deque, namedtuple, Counter
 
+from sudoku.sudoku_solver import Solver
+
 
 def clear() -> None:
     os.system('cls' if os.name == 'nt' else 'clear')
@@ -76,7 +78,7 @@ BoardSolved = namedtuple('BoardSolved', [])
 Backtrack = namedtuple('Backtrack', [])
 
 
-class SudokuSolverWFC:
+class WFCSolver(Solver):
     def __init__(self, board: list[list[int]]):
         self.board = board
         self.n = len(board)
@@ -86,7 +88,8 @@ class SudokuSolverWFC:
         self.current_cell: Cell = Cell(0, 0)
 
         # for visualizing
-        self.iterations = 0
+        self.visualize = False
+        self.steps = 0
 
     def solve(self):
         while True:
@@ -99,7 +102,6 @@ class SudokuSolverWFC:
 
                 case Cell(_, _) as cell:
                     self.current_cell = cell
-                    self.visualize_process()
                     self.make_move_on_board(self.current_cell)
 
     def scan_board(self) -> dict[Cell, set[int]]:
@@ -158,6 +160,9 @@ class SudokuSolverWFC:
             return result_cell
 
     def make_move_on_board(self, current_cell: Cell) -> None:
+        if self.visualize:
+            self.visualize_process()
+
         possibilities = self.board_state[current_cell]
 
         row_cells = self.get_cells_along_row(current_cell)
@@ -231,7 +236,7 @@ class SudokuSolverWFC:
 
         return effected_cells
 
-    def undo_move(self, cells: set[Cell], choice: int) -> None:
+    def undo_choice(self, cells: set[Cell], choice: int) -> None:
         for cell in cells:
             if self.board[cell.row][cell.col] == 0:
                 self.board_state[cell].add(choice)
@@ -241,35 +246,32 @@ class SudokuSolverWFC:
 
         while cannot_make_move:
 
-            self.iterations += 1  # for visualizing algo
+            if self.visualize:
+                self.visualize_process()
 
             last_move = self.moves.pop()
             self.current_cell = last_move.cell
             self.board[last_move.cell.row][last_move.cell.col] = 0
-            self.undo_move(last_move.effected_cells, last_move.value)
+            self.undo_choice(last_move.effected_cells, last_move.value)
 
             if len(last_move.other_possible_values) > 0:
                 cannot_make_move = False
                 self.board_state[last_move.cell] = set(last_move.other_possible_values)
-                self.current_cell = last_move.cell
-                self.make_move_on_board(self.current_cell)
             else:
                 possibilities = self.calculate_possible_values(last_move.cell)
                 self.board_state[last_move.cell] = possibilities
 
-            self.visualize_process()
-
     def visualize_process(self) -> None:
         clear()
-        self.iterations += 1
-        print(f'Iterations: {self.iterations}', end='\n\n')
+        self.steps += 1
+        print(f'Steps: {self.steps}', end='\n\n')
         print(self.board_repr(self.current_cell))
-        time.sleep(1 / 240)
+        time.sleep(1 / 60)
 
     def board_repr(self, cell: Cell):
-        s = [
-            [self.board_state[Cell(row_ind, col_ind)] for col_ind in range(self.n)]
-            for row_ind in range(self.n)]
+        s: list[list[set[int] | str]] = [[self.board_state[Cell(row_ind, col_ind)]
+                                          for col_ind in range(self.n)]
+                                         for row_ind in range(self.n)]
 
         for row_ind in range(self.n):
             for col_ind in range(self.n):
@@ -313,6 +315,9 @@ class SudokuSolverWFC:
 
         return '\n'.join(bs)
 
+    def __repr__(self):
+        return self.board_repr(self.current_cell)
+
 
 if __name__ == '__main__':
     # 9 by 9
@@ -330,7 +335,8 @@ if __name__ == '__main__':
         [2, 0, 7, 0, 8, 3, 6, 1, 5],
     ]
 
-    solver = SudokuSolverWFC(example_board_1)
+    solver = WFCSolver(example_board_1)
+    solver.visualize = True
     solver.solve()
 
     # ---------------------------------------------
@@ -361,5 +367,6 @@ if __name__ == '__main__':
         for row in example_board_2_str.split('\n')[1:-1]
     ]
 
-    solver = SudokuSolverWFC(example_board_2)
+    solver = WFCSolver(example_board_2)
     solver.solve()
+    print(solver)
