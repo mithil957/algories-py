@@ -4,7 +4,7 @@ import os
 import time
 from collections import deque, namedtuple, Counter
 
-from sudoku.sudoku_solver import Solver
+from sudoku_solver import Solver
 
 
 def clear() -> None:
@@ -79,7 +79,19 @@ Backtrack = namedtuple('Backtrack', [])
 
 
 class WFCSolver(Solver):
-    def __init__(self, board: list[list[int]]):
+    def __init__(self):
+        self.board: list[list[int]] | None = None
+        self.n = 0
+        self.cell_size: int = 0
+        self.board_state: dict[Cell, set[int]] | None = None
+        self.moves: deque[Move] | None = None
+        self.current_cell: Cell | None = None
+
+        # for visualizing
+        self.visualize = False
+        self.steps = 0
+
+    def set_board(self, board: list[list[int]]):
         self.board = board
         self.n = len(board)
         self.cell_size = int(self.n ** .5)
@@ -87,11 +99,9 @@ class WFCSolver(Solver):
         self.moves: deque[Move] = deque()
         self.current_cell: Cell = Cell(0, 0)
 
-        # for visualizing
-        self.visualize = False
-        self.steps = 0
+    def solve(self, board: list[list[int]]):
+        self.set_board(board)
 
-    def solve(self):
         while True:
             match self.look_for_cell():
                 case BoardSolved():
@@ -160,8 +170,7 @@ class WFCSolver(Solver):
             return result_cell
 
     def make_move_on_board(self, current_cell: Cell) -> None:
-        if self.visualize:
-            self.visualize_process()
+        self.visualize_process()
 
         possibilities = self.board_state[current_cell]
 
@@ -191,7 +200,7 @@ class WFCSolver(Solver):
         choices_sorted_by_count = [c[0] for c in choices.most_common()]
 
         # TODO how to pick the value
-        choice_with_lowest_count = choices_sorted_by_count.pop(0)
+        choice_with_lowest_count = choices_sorted_by_count.pop()
 
         effected_cells = self.propagate_choice(neighbor_cells, choice_with_lowest_count) | {current_cell}
 
@@ -246,8 +255,7 @@ class WFCSolver(Solver):
 
         while cannot_make_move:
 
-            if self.visualize:
-                self.visualize_process()
+            self.visualize_process()
 
             last_move = self.moves.pop()
             self.current_cell = last_move.cell
@@ -262,6 +270,9 @@ class WFCSolver(Solver):
                 self.board_state[last_move.cell] = possibilities
 
     def visualize_process(self) -> None:
+        if not self.visualize:
+            return
+
         clear()
         self.steps += 1
         print(f'Steps: {self.steps}', end='\n\n')
@@ -293,25 +304,33 @@ class WFCSolver(Solver):
         bs = []
 
         cell_number = (cell.row * self.n) + cell.col
+        spacing = 5 + len(str(self.n))
+
         for row_ind, row in enumerate(s):
             str_row = ['|' for _ in range(self.cell_size)]
 
             for col_ind, val_str in enumerate(row):
                 for ind, i in enumerate(range(0, self.n, self.cell_size)):
                     if self.board[row_ind][col_ind] != 0:
-                        str_row[ind] += f'\033[1;37;42m{val_str[i: i + self.cell_size]:5}\033[0;0m'
+                        str_row[ind] += f'\033[1;37;42m{val_str[i: i + self.cell_size]:{spacing}}\033[0;0m'
                     elif row_ind * self.n + col_ind == cell_number:
-                        str_row[ind] += f'\033[1;37;46m{val_str[i: i + self.cell_size]:5}\033[0;0m'
+                        str_row[ind] += f'\033[1;37;46m{val_str[i: i + self.cell_size]:{spacing}}\033[0;0m'
                     else:
-                        str_row[ind] += f'{val_str[i: i + self.cell_size]:5}'
+                        str_row[ind] += f'{val_str[i: i + self.cell_size]:{spacing}}'
 
                     str_row[ind] += '|'
+
+                if col_ind % self.cell_size == self.cell_size - 1:
+                    for i in range(len(str_row)):
+                        # size 4 gap
+                        str_row[i] += '    '
 
             if row_ind % self.cell_size == 0:
                 bs.append(' ' * len(str_row[0]))
 
             bs.extend(str_row)
-            bs.append('-' * (6 * self.n + 1))
+
+            bs.append('-' * ((spacing * self.n) + (self.n + 1) + (4 * (self.cell_size - 1))))
 
         return '\n'.join(bs)
 
@@ -335,9 +354,9 @@ if __name__ == '__main__':
         [2, 0, 7, 0, 8, 3, 6, 1, 5],
     ]
 
-    solver = WFCSolver(example_board_1)
+    solver = WFCSolver()
     solver.visualize = True
-    solver.solve()
+    solver.solve(example_board_1)
 
     # ---------------------------------------------
     # 16 by 16
@@ -367,6 +386,5 @@ if __name__ == '__main__':
         for row in example_board_2_str.split('\n')[1:-1]
     ]
 
-    solver = WFCSolver(example_board_2)
-    solver.solve()
-    print(solver)
+    solver.visualize = True
+    solver.solve(example_board_2)
