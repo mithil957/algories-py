@@ -8,6 +8,41 @@ def clear() -> None:
     os.system('cls' if os.name == 'nt' else 'clear')
 
 
+"""
+    Sudoku Solver 
+    - brute force approach
+    - board is a 2d array of size N by N 
+    - start at the top left cell
+        - calculate possible values for that cell using Sudoku rules
+        - if there is at least one value we can place in cell
+            - *pick a value 
+            - update the board
+            - push our "choice" represented as Move object pushed onto the stack
+            - *move to the next cell (left to right, top to bottom)
+        - if there is no possible value for the cell
+            - loop
+            - pop from stack, we get our previous "choice"
+            - when choice was made, were there any other values we could have picked?
+            - Move object has other_possible_values property
+            - if other_possible_values is empty (no other choice could have been made)
+                - loop again
+            - if other_possible_values is not empty (another choice could have been made)
+                - *pick a value from other_possible_values
+                - update the board
+                - push "choice" onto the pack with updated other_possible_values
+                - *move to the next cell
+        
+    
+    * pick a value
+        - possible values are represented as a set
+        - picks the first value in set
+        - Is there a better way of picking a value from the possibilities?
+         
+    * move to next cell
+        - from our current cell, we always move to left to right and top to bottom
+        - Is there a better way of deciding which cell to go to next?
+"""
+
 Move = namedtuple('Move', ['row', 'col', 'value', 'other_possible_values'])
 
 
@@ -64,6 +99,7 @@ class SudokuSolver:
 
                     # we can make move
                     if len(last_move.other_possible_values) > 0:
+                        # break loop
                         cannot_make_move = False
                         new_move = Move(last_move.row, last_move.col,
                                         last_move.other_possible_values.pop(), last_move.other_possible_values)
@@ -180,4 +216,4 @@ if __name__ == '__main__':
     ]
 
     solver = SudokuSolver(example_board_2)
-    solver.solve()
+    # solver.solve()
