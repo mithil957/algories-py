@@ -3,6 +3,7 @@ import time
 from sudoku_solver_wfc import WFCSolver
 from sudoku_solver_brute import BruteSolver
 from sudoku_solver import Solver
+import random
 
 
 class Benchmark:
@@ -14,9 +15,14 @@ class Benchmark:
 
         with open('all_17_clue_sudokus.txt') as f:
             num_puzzles = f.readline().replace('\n', '')
-            puzzle_counter = 1
+            puzzle_counter = 0
             can_read = True
             while can_read:
+                puzzle_counter += 1
+                if random.random() >= .15:  # run on 15% of cases
+                    continue
+
+                # TODO break loop check
                 current_puzzle = f.readline().replace('\n', '')
                 board = [[0 for _ in range(9)] for _ in range(9)]
 
@@ -28,8 +34,6 @@ class Benchmark:
                 self.solver.solve(board)
                 print(f'Puzzle {puzzle_counter} solved in {(time.time() - start_time) * 1000} milliseconds')
                 times_taken.append(time.time() - start_time)
-
-                puzzle_counter += 1
 
         print('---------------------')
         print(f'Total time taken: {sum(times_taken)} seconds')
