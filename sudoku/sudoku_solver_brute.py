@@ -75,16 +75,17 @@ class BruteSolver(Solver):
         self.visualize = False
         self.steps = 0
 
-    def set_board(self, board: list[list[int]]):
+    def set_board(self, board: list[list[int]], visualize: bool):
         self.board = board
         self.n = len(board)
         self.cell_size = int(self.n ** .5)
         self.moves: deque[Move] = deque()
         self.current_cell = Cell(0, 0)
         self.possibilities: set[int] = set()
+        self.visualize = visualize
 
-    def solve(self, board: list[list[int]]):
-        self.set_board(board)
+    def solve(self, board: list[list[int]], visualize: bool = False):
+        self.set_board(board, visualize)
 
         while True:
             match self.next_action():
@@ -175,11 +176,11 @@ class BruteSolver(Solver):
         clear()
         self.steps += 1
         print(f'Steps: {self.steps}', end='\n\n')
-        print(self.board_repr(self.current_cell))
+        print(self)
         time.sleep(1 / 60)
 
     # why is pretty printing a board so HARD
-    def board_repr(self, cell: Cell):
+    def __repr__(self):
         s: list[list[int | str]] = [[self.board[row_ind][col_ind]
                                      for col_ind in range(self.n)]
                                     for row_ind in range(self.n)]
@@ -193,7 +194,7 @@ class BruteSolver(Solver):
 
         bs = []
 
-        cell_number = (cell.row * self.n) + cell.col
+        cell_number = (self.current_cell.row * self.n) + self.current_cell.col
         spacing = len(str(self.n)) * len(str(self.cell_size))
         for row_ind, row in enumerate(s):
             str_row = ['|' for _ in range(self.cell_size)]
@@ -222,8 +223,8 @@ class BruteSolver(Solver):
 
         return '\n'.join(bs)
 
-    def __repr__(self):
-        return self.board_repr(self.current_cell)
+    def __str__(self):
+        return self.__repr__()
 
 
 if __name__ == '__main__':
@@ -243,8 +244,7 @@ if __name__ == '__main__':
     ]
 
     solver = BruteSolver()
-    solver.visualize = True
-    solver.solve(example_board_1)
+    solver.solve(example_board_1, visualize=True)
 
     # ---------------------------------------------
     # 16 by 16
