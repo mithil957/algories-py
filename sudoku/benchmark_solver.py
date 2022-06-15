@@ -13,27 +13,23 @@ class Benchmark:
     def benchmark_against_17_clue(self):
         times_taken = []
 
+        # all 9 by 9 puzzles
         with open('all_17_clue_sudokus.txt') as f:
-            num_puzzles = f.readline().replace('\n', '')
-            puzzle_counter = 0
-            can_read = True
-            while can_read:
-                puzzle_counter += 1
-                if random.random() >= .15:  # run on 15% of cases
-                    continue
+            num_puzzles = int(f.readline().replace('\n', ''))
 
-                # TODO break loop check
-                current_puzzle = f.readline().replace('\n', '')
-                board = [[0 for _ in range(9)] for _ in range(9)]
+            for puzzle_count in range(num_puzzles):
+                if random.random() <= .015:  # run on 15% of cases
+                    current_puzzle = f.readline().replace('\n', '')
+                    board = [[0 for _ in range(9)] for _ in range(9)]
 
-                for cell_number, val in enumerate(current_puzzle):
-                    board[cell_number // 9][cell_number % 9] = int(val)
+                    for cell_number, val in enumerate(current_puzzle):
+                        board[cell_number // 9][cell_number % 9] = int(val)
 
-                # solving board
-                start_time = time.time()
-                self.solver.solve(board)
-                print(f'Puzzle {puzzle_counter} solved in {(time.time() - start_time) * 1000} milliseconds')
-                times_taken.append(time.time() - start_time)
+                    # solving board
+                    start_time = time.time()
+                    self.solver.solve(board, visualize=False)
+                    print(f'Puzzle {puzzle_count} solved in {(time.time() - start_time) * 1000} milliseconds')
+                    times_taken.append(time.time() - start_time)
 
         print('---------------------')
         print(f'Total time taken: {sum(times_taken)} seconds')
@@ -42,7 +38,6 @@ class Benchmark:
 
 if __name__ == '__main__':
     wfc_solver = WFCSolver()
-    wfc_solver.visualize = False
     benchmark = Benchmark(wfc_solver)
 
     benchmark.benchmark_against_17_clue()
