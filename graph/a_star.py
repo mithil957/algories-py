@@ -76,7 +76,7 @@ def a_star_search(
         - has a starting point
         - has an ending point
         - to get to end
-            - pull a move from data structure
+            - pull a move from a data structure
             - make a move if that move has not been made before
             - from our current move, look at all possible moves
             - add those moves to data structure

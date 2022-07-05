@@ -67,15 +67,16 @@ def clear() -> None:
         - pop a move from moves, call this last_move
         - undo move by giving back value of move to all effected cells
         - if last_move has other values that could have been picked
-            - for each cell in empty_cells
-                - calculate possible values for cell and update board_state
             - set board to a value 
             - update board_state
             - find all cells that were effected
             - create Move object and place on moves stack
             - break backtrack
+            
         - if last_move has no other values that could have been picked
-            - add it to stack of empty cells -> empty_cells
+            - calculate possibilities for cell
+            - update board_state for cell and set it to calculated possibilities
+            - continue backtrack
 """
 
 
@@ -103,11 +104,11 @@ class WFCSolver(Solver):
         self.board: list[list[int]] = [[]]
         self.n: int = 0
         self.cell_size: int = 0
-        self.moves: deque[Move] = deque()
-        self.current_cell: Cell = Cell(0, 0)
 
+        self.current_cell: Cell = Cell(0, 0)
         self.number_of_filled_cells = 0
         self.board_state: dict[Cell, set[int]] = {}
+        self.moves: deque[Move] = deque()
 
         # for visualizing
         self.visualize: bool = False
@@ -117,11 +118,11 @@ class WFCSolver(Solver):
         self.board = board
         self.n = len(board)
         self.cell_size = int(self.n ** .5)
-        self.moves: deque[Move] = deque()
-        self.current_cell: Cell = Cell(0, 0)
 
+        self.current_cell: Cell = Cell(0, 0)
         self.number_of_filled_cells = self.get_filled_cells()
         self.board_state = self.scan_board()
+        self.moves: deque[Move] = deque()
 
         self.visualize = visualize
         self.steps = 0
@@ -443,17 +444,17 @@ if __name__ == '__main__':
 
     # 9 by 9
     example_board_1 = [
-        [0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 1, 2, 0, 3, 4, 5, 6, 7],
-        [0, 3, 4, 5, 0, 6, 1, 8, 2],
+        [1, 0, 0, 9, 0, 7, 0, 0, 3],
+        [0, 8, 0, 0, 0, 0, 0, 7, 0],
+        [0, 0, 9, 0, 0, 0, 6, 0, 0],
 
-        [0, 0, 1, 0, 5, 8, 2, 0, 6],
-        [0, 0, 8, 6, 0, 0, 0, 0, 1],
-        [0, 2, 0, 0, 0, 7, 0, 5, 0],
+        [0, 0, 7, 2, 0, 9, 4, 0, 0],
+        [4, 1, 0, 0, 0, 0, 0, 9, 5],
+        [0, 0, 8, 5, 0, 4, 3, 0, 0],
 
-        [0, 0, 3, 7, 0, 5, 0, 2, 8],
-        [0, 8, 0, 0, 6, 0, 7, 0, 0],
-        [2, 0, 7, 0, 8, 3, 6, 1, 5],
+        [0, 0, 3, 0, 0, 0, 7, 0, 0],
+        [0, 5, 0, 0, 0, 0, 0, 4, 0],
+        [2, 0, 0, 8, 0, 6, 0, 0, 9],
     ]
 
     solver.solve(example_board_1, visualize=True)
